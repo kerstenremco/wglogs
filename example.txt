@@ -1,0 +1,18 @@
+interface: wg0
+  public key: xxxx=
+  private key: (hidden)
+  listening port: 51820
+
+peer: aaaaaaaaaaaaa=
+  endpoint: 1.2.3.2:51820
+  allowed ips: 10.0.0.2/32
+  latest handshake: 2023-10-27T10:30:00Z
+  transfer: 0 MiB received, 0 MiB sent
+
+peer: bbbbbbbbbbbbbb=
+  endpoint: 3.2.3.4:51820
+  allowed ips: 10.0.0.2/32
+
+peer: ccccccccccccccc=
+  endpoint: 7.2.3.4:51820
+  allowed ips: 10.0.0.2/32
