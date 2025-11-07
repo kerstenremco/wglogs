@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -23,6 +24,7 @@ func main() {
 		return
 	}
 	firstArg := os.Args[1]
+	db.CreateDatabase()
 
 	switch firstArg {
 	case "svc":
@@ -32,14 +34,12 @@ func main() {
 	case "sync-test":
 		sync(true)
 	case "show":
-		entries, err := db.GetAllEntries()
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
+		conn := db.OpenDatabase()
+		defer conn.Close()
+		entries := db.GetAllEntries(conn)
 		printTable(entries)
 	default:
-		fmt.Println("Unknown command:", firstArg)
+		log.Fatal("Unknown argument")
 	}
 	
 }
@@ -55,18 +55,15 @@ func printTable(entries []types.PeerInfo) {
 				strings.NewReplacer("minutes", "min", "seconds ago", "sec").Replace(entry.LatestHandshake),
 				strings.NewReplacer("received", "recv").Replace(entry.Transfer),
 				entry.Start,
-				entry.End.String,
+				entry.End,
 			})
 		}
 		t.Render()
 }
 
 func sync(testMode bool) {
-	err := db.CreateDatabase()
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
+	conn := db.OpenDatabase()
+	defer conn.Close()
 
 	// Get current peer info
 	results, err := wg.GetInfo(testMode)
@@ -75,11 +72,7 @@ func sync(testMode bool) {
 		return
 	}
 
-	resultsExtended, err := db.GetLatestEndpoint(results)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
+	resultsExtended := db.GetLatestEndpoint(conn, results)
 
 	// Prepare entries to insert, update, close
 	var entriesToClose []types.PeerInfoWithLatestEndpoint
@@ -100,9 +93,9 @@ func sync(testMode bool) {
 	}
 
 	// Execute database changes
-	db.CloseEntry(entriesToClose)
-	db.InsertEntries(entriesToInsert)
-	db.UpdateEntry(entriesToUpdate)
+	db.CloseEntry(conn, entriesToClose)
+	db.InsertEntries(conn, entriesToInsert)
+	db.UpdateEntry(conn, entriesToUpdate)
 }
 
 func service() {
@@ -111,10 +104,10 @@ func service() {
 
 	fmt.Println("Service started...")
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	sync(true)
+	sync(false)
 	fmt.Println("Sync completed at", time.Now().Format(time.RFC1123))
 
 	for {
@@ -123,7 +116,7 @@ func service() {
 			fmt.Println("Service stopping...")
 			return
 		case <-ticker.C:
-			sync(true)
+			sync(false)
 			fmt.Println("Sync completed at", time.Now().Format(time.RFC1123))
 		}
 	}

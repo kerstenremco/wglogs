@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/kerstenremco/wglogs/internal/types"
 )
@@ -41,6 +42,8 @@ func GetInfo(testMode bool) ([]types.PeerInfo, error) {
 				parts := strings.SplitN(line, ": ", 2)
 				peerInfo.LatestHandshake = parts[1]
 			}
+			current := time.Now()
+			peerInfo.Start = current.Format("2006-01-02 15:04:05")
 			if strings.Contains(line, "transfer:") {
 				parts := strings.SplitN(line, ": ", 2)
 				peerInfo.Transfer = parts[1]
